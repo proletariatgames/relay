@@ -123,8 +123,8 @@ func (c *Consumer) Nack() error {
 	if !c.needAck {
 		fmt.Errorf("Nack is not required!")
 	}
-	if err := c.channel.Nack(c.lastMsg,
-		c.conf.EnableMultiAck, true); err != nil {
+	requeue := !c.conf.DisableNackRequeue
+	if err := c.channel.Nack(c.lastMsg, c.conf.EnableMultiAck, requeue); err != nil {
 		return err
 	}
 	c.needAck = false
@@ -162,7 +162,8 @@ func (c *Consumer) Close() error {
 
 	// Send a Nack for all these messages
 	if needAck {
-		if err := c.channel.Nack(lastMsg, true, true); err != nil {
+		requeue := !c.conf.DisableNackRequeue
+		if err := c.channel.Nack(lastMsg, true, requeue); err != nil {
 			return fmt.Errorf("Failed to send Nack for inflight messages! Got: %s", err)
 		}
 	}

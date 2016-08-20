@@ -28,6 +28,9 @@ type Config struct {
 	Serializer            Serializer    // Defaults to GOBSerializer
 	MessageTTL            time.Duration // Optional, attempts to put a TTL on message life
 	QueueTTL              time.Duration // Optional, attempts to make a TTL on a queue life
+	DisableNackRequeue    bool          // Disables requeuing Nack'd messages (useful with dead letter exchange)
+	DeadLetterExchange    string        // Optional, declared queues will bind to named dead letter exchange
+	DeadLetterRoutingKey  string        // Optional, direct dead letter queues must have a routing key
 }
 
 type Relay struct {
@@ -203,11 +206,16 @@ func (r *Relay) getChan(conn **amqp.Connection) (*amqp.Channel, error) {
 
 // Ensures the given queue exists and is bound to the exchange
 func (r *Relay) declareQueue(ch *amqp.Channel, name string, routingKey string) error {
-	var args amqp.Table
+	args := amqp.Table{}
 	if r.conf.QueueTTL > 0 {
-		args = make(map[string]interface{})
 		msec := int32(r.conf.QueueTTL / time.Millisecond)
 		args["x-expires"] = msec
+	}
+	if len(r.conf.DeadLetterExchange) > 0 {
+		args["x-dead-letter-exchange"] = r.conf.DeadLetterExchange
+	}
+	if len(r.conf.DeadLetterRoutingKey) > 0 {
+		args["x-dead-letter-routing-key"] = r.conf.DeadLetterRoutingKey
 	}
 
 	// Automatically use an exclusive queue if an empty name is provided.
