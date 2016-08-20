@@ -28,9 +28,14 @@ type Config struct {
 	Serializer            Serializer    // Defaults to GOBSerializer
 	MessageTTL            time.Duration // Optional, attempts to put a TTL on message life
 	QueueTTL              time.Duration // Optional, attempts to make a TTL on a queue life
-	DisableNackRequeue    bool          // Disables requeuing Nack'd messages (useful with dead letter exchange)
-	DeadLetterExchange    string        // Optional, declared queues will bind to named dead letter exchange
-	DeadLetterRoutingKey  string        // Optional, direct dead letter queues must have a routing key
+	DeadLetter            *DeadLetter   // Optional, nack'd messages end up in a special dead letter queue instead of being requeued
+}
+
+// DeadLetter defines a Dead Letter Exchange and Queue
+type DeadLetter struct {
+	Exchange   string // dead letter exchange to your queue
+	Queue      string // name the dead letter queue
+	RoutingKey string // name the routing key for your dead letter queue
 }
 
 type Relay struct {
@@ -198,6 +203,19 @@ func (r *Relay) getChan(conn **amqp.Connection) (*amqp.Channel, error) {
 		if err := ch.ExchangeDeclare(r.conf.Exchange, r.conf.ExchangeType, true, false, false, false, nil); err != nil {
 			return nil, fmt.Errorf("Failed to declare exchange '%s'! Got: %s", r.conf.Exchange, err)
 		}
+
+		// Also declare the dead letter exchange & queue
+		if r.conf.DeadLetter != nil {
+			if err := ch.ExchangeDeclare(r.conf.DeadLetter.Exchange, "direct", true, false, true, false, nil); err != nil {
+				return nil, fmt.Errorf("Failed to declare dead letter exchange '%s'! Got: %s", r.conf.DeadLetter.Exchange, err)
+			}
+			if _, err := ch.QueueDeclare(r.conf.DeadLetter.Queue, true, false, false, false, nil); err != nil {
+				return nil, fmt.Errorf("Failed to declare dead letter queue '%s'! Got: %s", r.conf.DeadLetter.Queue, err)
+			}
+			if err := ch.QueueBind(r.conf.DeadLetter.Queue, r.conf.DeadLetter.RoutingKey, r.conf.DeadLetter.Exchange, false, nil); err != nil {
+				return nil, fmt.Errorf("Failed to bind dead letter queue '%s'! Got: %s", r.conf.DeadLetter.Queue, err)
+			}
+		}
 	}
 
 	// Return the channel
@@ -211,11 +229,9 @@ func (r *Relay) declareQueue(ch *amqp.Channel, name string, routingKey string) e
 		msec := int32(r.conf.QueueTTL / time.Millisecond)
 		args["x-expires"] = msec
 	}
-	if len(r.conf.DeadLetterExchange) > 0 {
-		args["x-dead-letter-exchange"] = r.conf.DeadLetterExchange
-	}
-	if len(r.conf.DeadLetterRoutingKey) > 0 {
-		args["x-dead-letter-routing-key"] = r.conf.DeadLetterRoutingKey
+	if r.conf.DeadLetter != nil {
+		args["x-dead-letter-exchange"] = r.conf.DeadLetter.Exchange
+		args["x-dead-letter-routing-key"] = r.conf.DeadLetter.RoutingKey
 	}
 
 	// Automatically use an exclusive queue if an empty name is provided.
