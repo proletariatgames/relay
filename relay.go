@@ -209,11 +209,12 @@ func (r *Relay) getChan(conn **amqp.Connection) (*amqp.Channel, error) {
 			if err := ch.ExchangeDeclare(r.conf.DeadLetter.Exchange, "direct", true, false, true, false, nil); err != nil {
 				return nil, fmt.Errorf("Failed to declare dead letter exchange '%s'! Got: %s", r.conf.DeadLetter.Exchange, err)
 			}
-			if _, err := ch.QueueDeclare(r.conf.DeadLetter.Queue, true, false, false, false, nil); err != nil {
-				return nil, fmt.Errorf("Failed to declare dead letter queue '%s'! Got: %s", r.conf.DeadLetter.Queue, err)
+			name := queueName(r.conf.DeadLetter.Queue)
+			if _, err := ch.QueueDeclare(name, true, false, false, false, nil); err != nil {
+				return nil, fmt.Errorf("Failed to declare dead letter queue '%s'! Got: %s", name, err)
 			}
-			if err := ch.QueueBind(r.conf.DeadLetter.Queue, r.conf.DeadLetter.RoutingKey, r.conf.DeadLetter.Exchange, false, nil); err != nil {
-				return nil, fmt.Errorf("Failed to bind dead letter queue '%s'! Got: %s", r.conf.DeadLetter.Queue, err)
+			if err := ch.QueueBind(name, r.conf.DeadLetter.RoutingKey, r.conf.DeadLetter.Exchange, false, nil); err != nil {
+				return nil, fmt.Errorf("Failed to bind dead letter queue '%s'! Got: %s", name, err)
 			}
 		}
 	}
