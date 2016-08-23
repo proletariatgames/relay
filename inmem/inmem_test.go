@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/armon/relay"
+	"github.com/proletariatgames/relay"
 )
 
 func TestInmemBroker(t *testing.T) {

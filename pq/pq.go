@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/armon/relay/broker"
+	"github.com/proletariatgames/relay/broker"
 )
 
 // The pq package provides a simple priority queue. All that is required is a

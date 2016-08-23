@@ -6,8 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/armon/relay/broker"
-	"github.com/hashicorp/go-uuid"
+	"github.com/proletariatgames/relay/broker"
 )
 
 func TestRetryBroker_implements(t *testing.T) {
